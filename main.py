@@ -5,34 +5,35 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# تنظیم دقیق Gemini
+# تنظیم دقیق و کامل مدل
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# استفاده از مدل قوی‌تر و پایدارتر
-model = genai.GenerativeModel('gemini-1.5-flash')
+# استفاده از نام کامل مدل برای جلوگیری از خطای 404
+model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 @app.route("/")
 def home():
-    ticker_symbol = request.args.get("ticker", "META").upper()
+    ticker_symbol = request.args.get("ticker", "AAPL").upper()
     try:
+        # گرفتن اخبار
         stock = yf.Ticker(ticker_symbol)
-        # استفاده از متد جدیدتر برای گرفتن اخبار
-        news_list = stock.news[:3]
+        news_list = stock.news
         
-        if not news_list:
-            return jsonify({"status": "No news found"})
+        if not news_list or len(news_list) == 0:
+            return jsonify([{"ticker": ticker_symbol, "en": "No news found right now", "fa": "در حال حاضر خبری یافت نشد", "url": ""}])
 
         results = []
-        for news in news_list:
-            title = news.get('title', '')
-            link = news.get('link', '')
+        for news in news_list[:3]:
+            title = news.get('title', 'No title')
+            link = news.get('link', '#')
             
             try:
-                # دستور ترجمه بسیار دقیق
-                prompt = f"Translate this financial headline to Persian. Keep company names in English. Headline: {title}"
+                # ترجمه
+                prompt = f"Translate this financial news title to Persian: {title}"
                 response = model.generate_content(prompt)
+                # گرفتن متن خالص از پاسخ هوش مصنوعی
                 translated_title = response.text.strip()
-            except Exception as e:
-                translated_title = f"AI Busy: {str(e)[:20]}"
+            except Exception as ai_err:
+                translated_title = f"Translation pending... ({str(ai_err)[:10]})"
 
             results.append({
                 "ticker": ticker_symbol,
@@ -42,7 +43,7 @@ def home():
             })
         return jsonify(results)
     except Exception as e:
-        return jsonify({"error": str(e)})
+        return jsonify([{"error": str(e)}])
 
 if __name__ == "__main__":
     app.run()
