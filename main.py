@@ -5,40 +5,39 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
-# تنظیم دقیق و کامل مدل
+# تنظیم دقیق جمینای
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-# استفاده از نام کامل مدل برای جلوگیری از خطای 404
-model = genai.GenerativeModel('models/gemini-1.5-flash')
 
 @app.route("/")
 def home():
     ticker_symbol = request.args.get("ticker", "AAPL").upper()
     try:
-        # گرفتن اخبار
         stock = yf.Ticker(ticker_symbol)
-        news_list = stock.news
+        # متد جایگزین برای گرفتن خبر در صورت خالی بودن news
+        news_list = stock.news[:3]
         
-        if not news_list or len(news_list) == 0:
-            return jsonify([{"ticker": ticker_symbol, "en": "No news found right now", "fa": "در حال حاضر خبری یافت نشد", "url": ""}])
+        if not news_list:
+            return jsonify([{"fa": "خبری یافت نشد. تیکر را چک کنید."}])
 
+        # استفاده از مدل با نام کوتاه و مستقیم
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
         results = []
-        for news in news_list[:3]:
-            title = news.get('title', 'No title')
+        for news in news_list:
+            title = news.get('title', 'No Title')
             link = news.get('link', '#')
             
             try:
-                # ترجمه
-                prompt = f"Translate this financial news title to Persian: {title}"
+                prompt = f"ترجمه تخصصی بازار سرمایه به فارسی (نام شرکت ها انگلیسی بماند): {title}"
                 response = model.generate_content(prompt)
-                # گرفتن متن خالص از پاسخ هوش مصنوعی
-                translated_title = response.text.strip()
-            except Exception as ai_err:
-                translated_title = f"Translation pending... ({str(ai_err)[:10]})"
+                fa_title = response.text.strip()
+            except:
+                fa_title = "خطا در ترجمه هوش مصنوعی"
 
             results.append({
                 "ticker": ticker_symbol,
                 "en": title,
-                "fa": translated_title,
+                "fa": fa_title,
                 "url": link
             })
         return jsonify(results)
