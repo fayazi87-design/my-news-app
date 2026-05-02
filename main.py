@@ -1,13 +1,8 @@
 import os
 from flask import Flask, request, render_template_string
 import requests
-import google.generativeai as genai
 
 app = Flask(__name__)
-
-# گرفتن API Key
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -36,6 +31,31 @@ HTML_TEMPLATE = """
 </html>
 """
 
+# ترجمه ساده (Rule-based)
+def simple_translate(text):
+    text = text.lower()
+
+    replacements = {
+        "stock": "سهام",
+        "stocks": "سهام",
+        "market": "بازار",
+        "ai": "هوش مصنوعی",
+        "earnings": "سود",
+        "revenue": "درآمد",
+        "growth": "رشد",
+        "buy": "خرید",
+        "sell": "فروش",
+        "analyst": "تحلیلگر",
+        "wall street": "وال استریت",
+        "nvidia": "انویدیا",
+        "intel": "اینتل",
+    }
+
+    for en, fa in replacements.items():
+        text = text.replace(en, fa)
+
+    return text
+
 @app.route("/")
 def home():
     ticker = request.args.get("ticker", "NVDA").upper()
@@ -49,21 +69,13 @@ def home():
         )
 
         data = response.json()
-        raw_news = data.get('news', [])[:3]  # محدود برای سرعت
+        raw_news = data.get('news', [])[:5]
 
         results = []
 
         for n in raw_news:
             title = n.get('title', '')
-
-            # ترجمه با هندل خطا
-            translated = "ترجمه در دسترس نیست"
-            try:
-                res = model.generate_content(f"ترجمه کوتاه و دقیق به فارسی: {title}")
-                if res and hasattr(res, "text"):
-                    translated = res.text.strip()
-            except Exception:
-                pass
+            translated = simple_translate(title)
 
             results.append({
                 "title": title,
@@ -79,4 +91,4 @@ def home():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port)
