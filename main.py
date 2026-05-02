@@ -4,6 +4,8 @@ import requests
 import google.generativeai as genai
 
 app = Flask(__name__)
+
+# گرفتن API Key
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -37,24 +39,44 @@ HTML_TEMPLATE = """
 @app.route("/")
 def home():
     ticker = request.args.get("ticker", "NVDA").upper()
+
     try:
-        # متد مستقیم برای گرفتن اخبار بدون کتابخانه yfinance
         url = f"https://query2.finance.yahoo.com/v1/finance/search?q={ticker}"
-        data = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}).json()
-        raw_news = data.get('news', [])[:5]
-        
+        response = requests.get(
+            url,
+            headers={'User-Agent': 'Mozilla/5.0'},
+            timeout=10
+        )
+
+        data = response.json()
+        raw_news = data.get('news', [])[:3]  # محدود برای سرعت
+
         results = []
+
         for n in raw_news:
             title = n.get('title', '')
+
+            # ترجمه با هندل خطا
+            translated = "ترجمه در دسترس نیست"
             try:
-                # ترجمه Gemini
-                res = model.generate_content(f"ترجمه فارسی کوتاه: {title}")
-                translated = res.text.strip()
-            except: translated = "خطا در ترجمه"
-            results.append({"title": title, "translated": translated, "link": n.get('link', '#')})
+                res = model.generate_content(f"ترجمه کوتاه و دقیق به فارسی: {title}")
+                if res and hasattr(res, "text"):
+                    translated = res.text.strip()
+            except Exception:
+                pass
+
+            results.append({
+                "title": title,
+                "translated": translated,
+                "link": n.get('link', '#')
+            })
+
         return render_template_string(HTML_TEMPLATE, ticker=ticker, news=results)
+
     except Exception as e:
         return f"Error: {str(e)}"
 
+
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)
