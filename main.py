@@ -1,6 +1,7 @@
 import os
 from flask import Flask, request, render_template_string
 import requests
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 
@@ -12,10 +13,10 @@ HTML_TEMPLATE = """
     <title>اخبار فوری بورس</title>
     <style>
         body { font-family: Tahoma; background: #f4f7f6; padding: 20px; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 600px; margin: 15px auto; text-align: right; border-right: 5px solid #1a73e8; }
-        .en { color: #888; font-size: 0.8em; display: block; margin-bottom: 5px; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); max-width: 700px; margin: 15px auto; text-align: right; border-right: 5px solid #1a73e8; }
+        .en { color: #888; font-size: 0.85em; display: block; margin-bottom: 8px; direction: ltr; text-align: left; }
         .fa { color: #2c3e50; font-weight: bold; font-size: 1.1em; }
-        .link { color: #1a73e8; text-decoration: none; font-size: 0.8em; margin-top: 10px; display: inline-block; }
+        .link { color: #1a73e8; text-decoration: none; font-size: 0.85em; margin-top: 10px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -31,30 +32,12 @@ HTML_TEMPLATE = """
 </html>
 """
 
-# ترجمه ساده (Rule-based)
-def simple_translate(text):
-    text = text.lower()
-
-    replacements = {
-        "stock": "سهام",
-        "stocks": "سهام",
-        "market": "بازار",
-        "ai": "هوش مصنوعی",
-        "earnings": "سود",
-        "revenue": "درآمد",
-        "growth": "رشد",
-        "buy": "خرید",
-        "sell": "فروش",
-        "analyst": "تحلیلگر",
-        "wall street": "وال استریت",
-        "nvidia": "انویدیا",
-        "intel": "اینتل",
-    }
-
-    for en, fa in replacements.items():
-        text = text.replace(en, fa)
-
-    return text
+# ترجمه واقعی با گوگل (رایگان)
+def translate_text(text):
+    try:
+        return GoogleTranslator(source='auto', target='fa').translate(text)
+    except Exception:
+        return text
 
 @app.route("/")
 def home():
@@ -75,7 +58,7 @@ def home():
 
         for n in raw_news:
             title = n.get('title', '')
-            translated = simple_translate(title)
+            translated = translate_text(title)
 
             results.append({
                 "title": title,
